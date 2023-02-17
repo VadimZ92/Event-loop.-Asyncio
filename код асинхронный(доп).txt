@@ -1,0 +1,131 @@
+import asyncio
+import aiohttp
+from more_itertools import chunked
+from models import engine, Session, Base, SwapiPeople
+import json
+import requests
+
+CHUNK_SIZE =10
+
+def count_people():
+    response = requests.get(f"https://swapi.dev/api/people/").json()
+    count = response["count"]
+    return count
+
+
+async def get_people(session, people_id):
+    async with session.get(f"https://swapi.dev/api/people/{people_id}") as response:
+        json_data = await response.json()
+        return json_data
+
+async def get_film(session, results):
+    for record in results:
+        list_films = []
+        if type(record['films']) != list:
+            async with session.get(f"{record['films']}") as response:
+                json_data = await response.json()
+            list_films.append(json_data["title"])
+         else:
+            for film in record['films']:
+                async with session.get(f"{film}") as response:
+                    json_data = await response.json()
+                list_films.append(json_data["title"])
+        return list_films
+
+async def get_starships(session, results):
+    for record in results:
+        list_starships = []
+        if type(record['starships']) != list:
+            async with session.get(f"{record['starships']}") as response:
+                json_data = await response.json()
+            list_starships.append(json_data["name"])
+        else:
+            for film in record['starships']:
+                async with session.get(f"{film}") as response:
+                    json_data = await response.json()
+                list_starships.append(json_data["name"])
+        return list_starships
+
+async def get_vehicles(session, results):
+    for record in results:
+        list_vehicles = []
+        if type(record['vehicles']) != list:
+            async with session.get(f"{record['vehicles']}") as response:
+                json_data = await response.json()
+            list_vehicles.append(json_data["name"])
+         else:
+            for film in record['vehicles']:
+                async with session.get(f"{film}") as response:
+                    json_data = await response.json()
+                list_vehicles.append(json_data["name"])
+        return list_vehicles
+
+async def get_homeworld(session, results):
+    for record in results:
+        list_homeworld = []
+        if type(record['homeworld']) != list:
+            async with session.get(f"{record['homeworld']}") as response:
+                json_data = await response.json()
+            list_homeworld.append(json_data["name"])
+        else:
+            for film in record['homeworld']:
+                async with session.get(f"{film}") as response:
+                    json_data = await response.json()
+                list_homeworld.append(json_data["name"])
+        return list_homeworld
+
+async def get_species(session, results):
+    for record in results:
+        list_species = []
+        if type(record['species']) != list:
+            async with session.get(f"{record['species']}") as response:
+                json_data = await response.json()
+            list_species.append(json_data["name"])
+            break
+        else:
+            for film in record['species']:
+                async with session.get(f"{film}") as response:
+                    json_data = await response.json()
+                list_species.append(json_data["name"])
+        return list_species
+
+async def paste_to_db(results):
+
+    for record in results:
+        async with Session() as session:
+            session.add(SwapiPeople(name=record.get('name'), birth_year=record.get('birth_year'),
+                                    eye_color=record.get('eye_color'), gender=record.get('gender'),
+                                    hair_color=record.get('hair_color'), height=record.get('height'),
+                                    mass=record.get('mass'), skin_color=record.get('skin_color'),
+                                    films=await get_film(session, results),
+                                    starships=await get_starships(session, results),
+                                    vehicles=await get_vehicles(session, results),
+                                    homeworld=await get_homeworld(session, results),
+                                    species=await get_species(session, results)))
+            await session.commit()
+
+async def main():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    session = aiohttp.ClientSession()
+    coros = []
+    for i in range(1, count_people()+1):
+        coroutine = get_people(session, i)
+        coros.append(coroutine)
+    for coros_chunk in chunked(coros, CHUNK_SIZE):
+        results = await asyncio.gather(*coros_chunk)
+        asyncio.create_task(paste_to_db(results))
+    print("OK")
+
+    await session.close()
+    set_task = asyncio.all_tasks()
+    for task in set_task:
+        if task != asyncio.current_task():
+            await task
+
+asyncio.get_event_loop().run_until_complete(main())
+
+
+    async with session.get(f"{film}") as response:
+TypeError: get() missing 1 required positional argument: 'ident'
