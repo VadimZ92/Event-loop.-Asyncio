@@ -1,0 +1,20 @@
+version: '3.1'
+networks:
+  dbeaver_net:
+services:
+  db:
+    image: postgres:14.1
+    environment:
+      POSTGRES_PASSWORD: ${PASSWORD}
+      POSTGRES_USER: ${USER}
+      POSTGRES_DB: ${DB}
+    ports:
+      - "5431:5432"
+    networks:
+      - dbeaver_net
+  dbeaver:
+    image: dbeaver/cloudbeaver:latest
+    ports:
+      - "7777:8978"
+    networks:
+      - dbeaver_net
